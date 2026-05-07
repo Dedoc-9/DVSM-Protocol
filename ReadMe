@@ -163,6 +163,188 @@ public struct DVSMClusterConfig: Sendable {
     public let activeNodes: Set<UUID>
     public let threshold: Int
 }
+// =====================================================
+// MARK: - DVSM v17.x ADDENDUM: CONVERGENT KINETIC CONSENSUS EXTENSION
+// MARK: - File: DVSMConvergentKineticAddendum.swift
+// MARK: - Purpose: Dynamic Execution, Stability, and Failure-Bound Behavior
+// =====================================================
+
+/*
+ # ADDENDUM PURPOSE
+
+ This addendum extends DVSM v17.x into its kinetic regime:
+ the transition from static geometric consensus to
+ **convergent real-time manifold dynamics**.
+
+ It defines:
+
+ 1. Speculative execution behavior under latency pressure
+ 2. Stochastic AI integration boundaries
+ 3. Human authority override semantics
+ 4. Convergence safety constraints under kinetic drift
+ 5. Explicit failure-mode interpretation rules
+
+ IMPORTANT:
+ This file does NOT modify core invariants.
+ It attaches behavioral semantics to the existing DVSM manifold.
+*/
+
+// =====================================================
+// MARK: - 1. KINETIC EXECUTION MODEL
+// =====================================================
+
+public enum DVSMExecutionPath: Sendable {
+    /// Strict deterministic v17.x behavior
+    case deterministic
+
+    /// Low-latency predictive execution (UI / gaming / edge compute)
+    case speculative
+
+    /// Distribution-based AI inference normalization
+    case stochastic
+}
+
+// =====================================================
+// MARK: - 2. CONVERGENCE STATE EXTENSION
+// =====================================================
+
+public enum DVSMConvergenceState: Sendable {
+    case converged
+    case pendingSpeculation
+    case stochasticUnresolved
+    case humanAuthorityActive
+    case divergent
+}
+
+// =====================================================
+// MARK: - 3. STOCHASTIC NORMALIZATION ENVELOPE
+// =====================================================
+
+public struct DVSMStochasticEnvelope: Sendable {
+    public let meanHash: Data
+    public let variance: FixedPoint
+    public let confidence: FixedPoint
+    public let sampleSize: Int
+
+    public init(meanHash: Data, variance: FixedPoint, confidence: FixedPoint, sampleSize: Int) {
+        self.meanHash = meanHash
+        self.variance = variance
+        self.confidence = confidence
+        self.sampleSize = sampleSize
+    }
+}
+
+// =====================================================
+// MARK: - 4. HUMAN AUTHORITY INTERVENTION LAYER
+// =====================================================
+
+public struct DVSMHumanIntervention: Sendable {
+    public let authorityID: UUID
+    public let overridePayload: Data
+    public let justificationHash: Data
+    public let signature: Data
+
+    /// Validates structural integrity of intervention.
+    public func isValid(for round: DVSMRound) -> Bool {
+        // Formal placeholder: cryptographic multi-sig binding required in production layer
+        return !signature.isEmpty
+    }
+}
+
+// =====================================================
+// MARK: - 5. CONVERGENCE WINDOW (SAFETY BOUNDARY)
+// =====================================================
+
+public struct DVSMConvergenceWindow: Sendable {
+    public let maxSpeculationDepth: Int
+    public let maxStochasticVariance: FixedPoint
+
+    /// Determines whether system must collapse speculative state
+    public func allowsCommit(divergence: FixedPoint, depth: Int) -> Bool {
+        return depth <= maxSpeculationDepth && divergence < maxStochasticVariance
+    }
+
+    /// Hard safety override: forces rollback under instability
+    public func requiresRollback(divergence: FixedPoint, depth: Int) -> Bool {
+        return depth > maxSpeculationDepth || divergence > maxStochasticVariance
+    }
+}
+
+// =====================================================
+// MARK: - 6. KINETIC RECONCILIATION FIELD EXTENSION
+// =====================================================
+
+public extension DVSMReconciliationField {
+
+    /// Converts geometric divergence into kinetic stability classification
+    func kineticClassify(
+        divergence: FixedPoint,
+        window: DVSMConvergenceWindow,
+        depth: Int
+    ) -> DVSMRecoveryMode {
+
+        if window.requiresRollback(divergence: divergence, depth: depth) {
+            return .coldBootstrap
+        }
+
+        if divergence < FixedPoint(raw: epsilon.rawValue / 4) {
+            return .verified
+        } else if divergence < epsilon {
+            return .warmSync
+        } else {
+            return .coldBootstrap
+        }
+    }
+}
+
+// =====================================================
+// MARK: - 7. FAILURE MODE INTERPRETATION LAYER
+// =====================================================
+
+public enum DVSMFailureMode: Sendable {
+    case temporalDesync
+    case convergenceCollapse
+    case cryptographicInvalidation
+    case recoveryLoopDivergence
+}
+
+/// Translates system failure into deterministic classification space
+public func interpretFailure(_ error: DVSMError) -> DVSMFailureMode {
+    switch error {
+    case .temporalViolation:
+        return .temporalDesync
+    case .quorumFailure:
+        return .cryptographicInvalidation
+    case .recoveryDivergence:
+        return .recoveryLoopDivergence
+    }
+}
+
+// =====================================================
+// MARK: - 8. SYSTEM BEHAVIOR CONTRACT (KINETIC RULESET)
+// =====================================================
+
+/*
+ INVARIANT K1 — SPECULATIVE BOUNDARY RULE
+ Speculative execution MUST collapse into deterministic state
+ within the convergence window or be discarded.
+
+ INVARIANT K2 — STOCHASTIC BINDING RULE
+ AI-derived outputs are valid ONLY as statistical envelopes,
+ never as raw deterministic truth.
+
+ INVARIANT K3 — HUMAN OVERRIDE RULE
+ Human intervention is a first-class state transition but
+ cannot violate cryptographic finality constraints.
+
+ INVARIANT K4 — CONVERGENCE SAFETY RULE
+ Any sustained divergence beyond threshold triggers rollback
+ to last verified manifold anchor.
+*/
+
+// =====================================================
+// END OF ADDENDUM
+// =====================================================
 
 /**
  ### BOILERPLATE / LEGAL
