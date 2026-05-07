@@ -1,0 +1,403 @@
+import Foundation
+import CryptoKit
+import OSLog
+
+// =====================================================
+// MARK: - DVSM v21.0.1: REIFIED KINETIC INTEGRATION SDK
+// MARK: - Author Key: Daniel J. Dillberg
+// MARK: - Status: FINAL REFERENCE STANDARD [Hardened]
+// =====================================================
+
+/**
+ # DVSM (Deterministic Variable-resolution State Machine)
+
+ ## WHITEPAPER LOGIC SUMMARY
+ DVSM replaces opaque execution with a self-stabilizing digital environment.
+ By resolving the "Observer's Trap," the system moves from binary gating
+ to semantic damping through recursive manifold calibration.
+
+ ### SDK ARCHITECTURE
+ 1. Core: Fixed-point determinism & manifold invariants.
+ 2. Dynamics: Reified kinetics & recursive calibration.
+ 3. Governance: Autonomic recovery & persistence-based truth.
+ 4. Integration: Optional kinetic settings & extension hooks.
+ */
+
+// =====================================================
+// MARK: - 1. BOILERPLATE & GLOBAL STANDARDS
+// =====================================================
+
+public enum DVSM {
+    public static let version = "21.0.1"
+    public static let author = "Daniel J. Dillberg"
+    public static let license = "Proprietary - Formal Specification Standard"
+
+    internal static let log = OSLog(
+        subsystem: "com.dvsm.core",
+        category: "Manifold"
+    )
+}
+
+public enum DVSMError: Error {
+    case manifoldTear
+    case recursiveDivergence
+    case terminalStateViolation
+}
+
+// =====================================================
+// MARK: - 2. OPTIONAL SETTINGS & LAYERS
+// =====================================================
+
+public struct DVSMKineticSettings: Sendable {
+
+    /// Enables speculative manifold ingest for low-latency execution.
+    public var enableElasticIngest: Bool = true
+
+    /// Recursive calibration learning rate.
+    public var learningRate: Double = 0.05
+
+    /// Restoring force applied after divergence.
+    public var restoringElasticity: Double = 0.85
+
+    /// Divergence threshold for lifecycle transition.
+    public var divergenceThreshold: Double = 0.35
+
+    /// Maximum retained trajectory history.
+    public var trajectoryWindow: Int = 128
+
+    public static let `default` = DVSMKineticSettings()
+}
+
+// =====================================================
+// MARK: - 3. CORE PRIMITIVES
+// =====================================================
+
+public struct FixedPoint: Sendable, Hashable, Comparable {
+
+    public let rawValue: Int64
+
+    public static let scale: Int64 = 1_000_000
+
+    public init(_ value: Double) {
+        self.rawValue = Int64(value * Double(Self.scale))
+    }
+
+    public init(raw: Int64) {
+        self.rawValue = raw
+    }
+
+    public var doubleValue: Double {
+        Double(rawValue) / Double(Self.scale)
+    }
+
+    public static func + (lhs: FixedPoint, rhs: FixedPoint) -> FixedPoint {
+        .init(raw: lhs.rawValue + rhs.rawValue)
+    }
+
+    public static func - (lhs: FixedPoint, rhs: FixedPoint) -> FixedPoint {
+        .init(raw: lhs.rawValue - rhs.rawValue)
+    }
+
+    public static func < (lhs: FixedPoint, rhs: FixedPoint) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+}
+
+// =====================================================
+// MARK: - 4. CALIBRATION FRAME
+// =====================================================
+
+public struct DVSMCalibrationFrame: Sendable {
+
+    /// Internal damping coefficient.
+    public var stabilityScale: Double
+
+    /// Baseline entropy normalization.
+    public var baselineEntropy: Double
+
+    /// Recursive coupling coefficient.
+    public var couplingCoefficient: Double
+
+    public static let identity = DVSMCalibrationFrame(
+        stabilityScale: 1.0,
+        baselineEntropy: 0.0,
+        couplingCoefficient: 1.0
+    )
+
+    /// Recursive self-stabilization update rule.
+    public func updated(
+        observedVariance: Double,
+        rate: Double
+    ) -> DVSMCalibrationFrame {
+
+        var next = self
+
+        // Stability adapts toward equilibrium.
+        next.stabilityScale *= (
+            1.0 + rate * (0.5 - observedVariance)
+        )
+
+        // Entropy baseline slowly recenters.
+        next.baselineEntropy += (
+            observedVariance * rate * 0.01
+        )
+
+        // Coupling weakens under persistent variance.
+        next.couplingCoefficient *= (
+            1.0 - min(0.25, observedVariance * rate * 0.1)
+        )
+
+        return next
+    }
+}
+
+// =====================================================
+// MARK: - 5. TRAJECTORY & GOVERNANCE
+// =====================================================
+
+public struct DVSMTrajectorySample: Sendable {
+
+    public let persistence: Double
+    public let phaseDelta: Double
+    public let timestamp: UInt64
+}
+
+public enum DVSMLifecycle: Sendable {
+    case initializing
+    case reified
+    case divergent
+    case terminal
+}
+
+// =====================================================
+// MARK: - 6. THE REIFIED KERNEL
+// =====================================================
+
+public final class DVSMKernel: Sendable {
+
+    // =================================================
+    // MARK: INTERNAL STATE
+    // =================================================
+
+    struct KernelState {
+
+        var manifoldPhase: FixedPoint
+        var calibration: DVSMCalibrationFrame
+        var accumulatedAction: Double
+        var trajectory: [DVSMTrajectorySample]
+        var lifecycle: DVSMLifecycle
+    }
+
+    private let state: OSAllocatedUnfairLock<KernelState>
+    private let settings: DVSMKineticSettings
+
+    // =================================================
+    // MARK: INITIALIZATION
+    // =================================================
+
+    public init(
+        bootstrap: FixedPoint,
+        settings: DVSMKineticSettings = .default
+    ) {
+
+        self.settings = settings
+
+        self.state = OSAllocatedUnfairLock(
+            initialState: KernelState(
+                manifoldPhase: bootstrap,
+                calibration: .identity,
+                accumulatedAction: 0.0,
+                trajectory: [],
+                lifecycle: .initializing
+            )
+        )
+    }
+
+    // =================================================
+    // MARK: PRIMARY REIFIED PULSE
+    // =================================================
+
+    /// Primary SDK entry point.
+    ///
+    /// Implements recursive semantic filtering through
+    /// manifold persistence dynamics.
+    ///
+    /// - Parameters:
+    ///   - input: Arbitrary payload.
+    ///   - telemetry: External manifold observation.
+    ///
+    /// - Returns:
+    ///   A tuple containing:
+    ///   1. Domain-separated truth digest.
+    ///   2. Persistence scalar.
+    public func pulse(
+        input: Data,
+        telemetry: FixedPoint
+    ) throws -> (truth: Data, persistence: Double) {
+
+        return try state.withLock { state in
+
+            guard state.lifecycle != .terminal else {
+                throw DVSMError.terminalStateViolation
+            }
+
+            // -------------------------------------------------
+            // 1. FIELD PRESSURE COMPUTATION
+            // -------------------------------------------------
+
+            let delta = abs(
+                telemetry.doubleValue -
+                state.manifoldPhase.doubleValue
+            )
+
+            // -------------------------------------------------
+            // 2. PERSISTENCE COMPUTATION (Closure)
+            // -------------------------------------------------
+
+            let persistence = max(
+                0.0,
+                1.0 - (delta * state.calibration.stabilityScale)
+            )
+
+            // -------------------------------------------------
+            // 3. MANIFOLD EVOLUTION (Crystallization)
+            // -------------------------------------------------
+
+            let newPhaseValue =
+                (state.manifoldPhase.doubleValue * (1.0 - persistence)) +
+                (telemetry.doubleValue * persistence)
+
+            state.manifoldPhase = FixedPoint(newPhaseValue)
+
+            // -------------------------------------------------
+            // 4. RECURSIVE CALIBRATION (Self-Anchoring)
+            // -------------------------------------------------
+
+            state.calibration = state.calibration.updated(
+                observedVariance: delta,
+                rate: settings.learningRate
+            )
+
+            state.accumulatedAction += delta * persistence
+
+            // -------------------------------------------------
+            // 5. TRUTH GENERATION (Domain-Separated Binding)
+            // -------------------------------------------------
+
+            var hasher = SHA256()
+
+            hasher.update(
+                data: "DVSM-V21-REIFIED".data(using: .utf8)!
+            )
+
+            hasher.update(data: input)
+
+            hasher.update(
+                data: withUnsafeBytes(
+                    of: state.manifoldPhase.rawValue.bigEndian
+                ) { Data($0) }
+            )
+
+            let truth = Data(hasher.finalize())
+
+            // -------------------------------------------------
+            // 6. RECORD TRAJECTORY
+            // -------------------------------------------------
+
+            state.trajectory.append(
+                DVSMTrajectorySample(
+                    persistence: persistence,
+                    phaseDelta: delta,
+                    timestamp: UInt64(Date().timeIntervalSince1970)
+                )
+            )
+
+            // Maintain bounded trajectory memory.
+            if state.trajectory.count > settings.trajectoryWindow {
+                state.trajectory.removeFirst(
+                    state.trajectory.count - settings.trajectoryWindow
+                )
+            }
+
+            // -------------------------------------------------
+            // 7. LIFECYCLE TRANSITION
+            // -------------------------------------------------
+
+            state.lifecycle =
+                (delta > settings.divergenceThreshold)
+                ? .divergent
+                : .reified
+
+            return (
+                truth: truth,
+                persistence: persistence
+            )
+        }
+    }
+}
+
+// =====================================================
+// MARK: - 7. INTEGRATION HELPERS & SDK HOOKS
+// =====================================================
+
+public extension DVSMKernel {
+
+    struct ManifoldStatus: Sendable {
+
+        public let phase: Double
+        public let stability: Double
+        public let coupling: Double
+        public let totalAction: Double
+        public let lifecycle: DVSMLifecycle
+        public let trajectoryDepth: Int
+    }
+
+    /// Snapshot diagnostic hook.
+    func queryStatus() -> ManifoldStatus {
+
+        state.withLock { state in
+
+            ManifoldStatus(
+                phase: state.manifoldPhase.doubleValue,
+                stability: state.calibration.stabilityScale,
+                coupling: state.calibration.couplingCoefficient,
+                totalAction: state.accumulatedAction,
+                lifecycle: state.lifecycle,
+                trajectoryDepth: state.trajectory.count
+            )
+        }
+    }
+
+    /// Read-only trajectory export.
+    func exportTrajectory() -> [DVSMTrajectorySample] {
+
+        state.withLock { $0.trajectory }
+    }
+
+    /// Controlled terminal shutdown.
+    func terminate() {
+
+        state.withLock { state in
+            state.lifecycle = .terminal
+        }
+    }
+}
+
+// =====================================================
+// MARK: - 8. FINAL AXIOMATIC RESIDUE
+// =====================================================
+
+/*
+ DVSM v21.0.1 is a self-calibrating measurement field.
+
+ 1. NO GATING:
+    Data is never rejected; it is attenuated by the manifold.
+
+ 2. NO OBSERVER:
+    The instrument discovers its own zero-point recursively.
+
+ 3. NO LOGIC:
+    Truth is a fixed-point of persistence.
+
+ (c) 2024 Daniel J. Dillberg. All Rights Reserved.
+*/
