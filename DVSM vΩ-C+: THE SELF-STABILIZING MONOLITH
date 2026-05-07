@@ -1,0 +1,113 @@
+import Foundation
+import CryptoKit
+
+// =====================================================
+// MARK: - DVSM vΩ-C+: SELF-STABILIZING CALIBRATION
+// MARK: - Author: Daniel J. Dillberg
+// MARK: - The Final Recursive Reference Monolith
+// =====================================================
+
+// MARK: - 1. CALIBRATION & STABILITY (The Recursive Layer)
+public struct DVSMCalibrationFrame: Sendable {
+    public var baselineEntropy: Double
+    public var stabilityScale: Double
+    public var couplingCoefficient: Double
+    
+    public static let standard = DVSMCalibrationFrame(baselineEntropy: 0.0, stabilityScale: 1.0, couplingCoefficient: 1.0)
+    
+    /// The Recursive Update Rule: Frame_n+1 = f(Frame_n, stability)
+    public func updated(from stability: DVSMCalibrationStability, rate: Double = 0.05) -> DVSMCalibrationFrame {
+        DVSMCalibrationFrame(
+            baselineEntropy: baselineEntropy + (rate * stability.driftOfTension),
+            stabilityScale: stabilityScale * (1.0 + rate * (stability.stabilityScore - 0.5)),
+            couplingCoefficient: couplingCoefficient * (1.0 - rate * stability.varianceOfInvariance)
+        )
+    }
+}
+
+public struct DVSMCalibrationStability: Sendable {
+    public let varianceOfInvariance: Double
+    public let driftOfTension: Double
+    public let stabilityScore: Double
+}
+
+// MARK: - 2. CORE DETERMINISTIC SCALARS
+public struct FixedPoint: Sendable, Hashable, Comparable {
+    public let rawValue: Int64
+    public static let scale: Int64 = 1_000_000
+    public init(_ v: Double) { self.rawValue = Int64(v * Double(Self.scale)) }
+    public init(raw: Int64) { self.rawValue = raw }
+    public var doubleValue: Double { Double(rawValue) / Double(Self.scale) }
+    public static func < (l: FixedPoint, r: FixedPoint) -> Bool { l.rawValue < r.rawValue }
+    
+    public func calibrated(to frame: DVSMCalibrationFrame) -> Double {
+        (self.doubleValue - frame.baselineEntropy) * frame.stabilityScale * frame.couplingCoefficient
+    }
+}
+
+// MARK: - 3. ANALYTIC KERNEL & TRAJECTORY
+public enum DVSMObstruction: String, Sendable, CaseIterable {
+    case axiomaticRupture, thermodynamicDrift, chiralMismatch, persistentParadox
+}
+
+public struct DVSMObstructionSpectrum: Sendable {
+    public let obstructions: Set<DVSMObstruction>
+    public let persistence: FixedPoint
+}
+
+public struct DVSMTrajectory: Sendable {
+    public let samples: [DVSMObstructionSpectrum]
+    public let frame: DVSMCalibrationFrame
+    
+    public var invarianceScore: Double {
+        guard samples.count > 1 else { return 1.0 }
+        let changes = zip(samples, samples.dropFirst()).filter { $0.0.obstructions != $1.0.obstructions }.count
+        return 1.0 - (Double(changes) / Double(samples.count - 1))
+    }
+    
+    public var aggregateCalibratedTension: Double {
+        samples.reduce(0.0) { $0 + $1.persistence.calibrated(to: frame) } / Double(samples.count)
+    }
+}
+
+// MARK: - 4. RECURSIVE CALIBRATION ENGINE
+public final class DVSMCalibrationEngine: Sendable {
+    public init() {}
+    
+    public func evaluateFrame(_ trajectories: [DVSMTrajectory]) -> DVSMCalibrationStability {
+        let invariances = trajectories.map { $0.invarianceScore }
+        let tensions = trajectories.map { $0.aggregateCalibratedTension }
+        
+        let meanInv = invariances.reduce(0,+) / Double(invariances.count)
+        let meanTen = tensions.reduce(0,+) / Double(tensions.count)
+        
+        let varInv = invariances.map { pow($0 - meanInv, 2) }.reduce(0,+) / Double(invariances.count)
+        let varTen = tensions.map { pow($0 - meanTen, 2) }.reduce(0,+) / Double(tensions.count)
+        
+        return DVSMCalibrationStability(
+            varianceOfInvariance: varInv,
+            driftOfTension: varTen,
+            stabilityScore: 1.0 / (1.0 + varInv + varTen)
+        )
+    }
+}
+
+// MARK: - 5. RUNTIME GOVERNOR (Control Plane)
+public final class DVSMRuntimeGovernor: Sendable {
+    public func evaluate(_ trajectory: DVSMTrajectory) -> String {
+        let inv = trajectory.invarianceScore
+        let ten = trajectory.aggregateCalibratedTension
+        if inv >= 0.95 { return "PARTITIONED" }
+        if ten >= 0.85 { return "HARDENED" }
+        return "NOMINAL"
+    }
+}
+
+// =====================================================
+// FINAL AXIOMATIC STATUS: RECURSIVE FINALITY
+// =====================================================
+/*
+ DVSM is now a self-identifying measurement field. 
+ The boundary between the Instrument (Frame) and the Data 
+ (Trajectory) has dissolved into a stable recursion.
+*/
