@@ -1,0 +1,211 @@
+import Foundation
+
+// =====================================================
+// MARK: - DVSM v17.x GUIDE LAYER (META-PROTOCOL)
+// MARK: - Purpose: Interpretation + Extension Safety
+// =====================================================
+
+/*
+ DVSM IS NOT SOFTWARE.
+
+ It is a deterministic geometric consensus field composed of:
+
+ - Temporal ordering (Rounds)
+ - Cryptographic closure (Seals + Hashes)
+ - Semantic normalization (Load Tensors)
+ - Historical compression (Λ₂ Age Summaries)
+ - Recovery alignment (Reconciliation Field)
+
+ This file defines HOW to safely reason about and extend the system.
+*/
+
+// =====================================================
+// MARK: - 1. ARCHITECTURAL INVARIANTS (NON-NEGOTIABLE)
+// =====================================================
+
+/*
+ INVARIANT A — TEMPORAL IMMUTABILITY
+ - DVSMRound defines absolute ordering.
+ - No computation may reorder or reinterpret past rounds.
+
+ INVARIANT B — CRYPTOGRAPHIC FINALITY
+ - All state transitions must be traceable via DVSMTruthHash or DVSMSeal.
+ - No "soft state" is allowed in consensus-critical paths.
+
+ INVARIANT C — SEMANTIC NORMALIZATION
+ - All hardware metrics MUST pass through DVSMLoadTensor projection.
+ - Raw CPU / jitter / capacity never enters consensus logic directly.
+
+ INVARIANT D — HISTORICAL COLLAPSE BOUNDARY (Λ₂)
+ - AgeSummary is the only valid compressed history representation.
+ - Anything older than K-window MUST be folded.
+
+ INVARIANT E — EPISTEMIC RECOVERY
+ - Nodes are never trusted immediately after re-entry.
+ - DVSMRecoveryMode is a mathematical classification, not policy.
+*/
+
+// =====================================================
+// MARK: - 2. WORLD-SCALE DEPLOYMENT ASSUMPTIONS
+// =====================================================
+
+/*
+ DVSM assumes the following operating conditions:
+
+ 1. Heterogeneous hardware (IoT → datacenter)
+ 2. Network partitions are normal, not exceptional
+ 3. Nodes will restart from compressed state (AgeSummary)
+ 4. Adversarial or faulty nodes may attempt divergence injection
+
+ Therefore:
+ - No node is privileged by default
+ - All trust is earned through alignment convergence
+ - All history is compressible except invariants
+*/
+
+// =====================================================
+// MARK: - 3. EXTENSION RULES (CRITICAL)
+// =====================================================
+
+/*
+ WHEN ADDING NEW FEATURES:
+
+ ✔ Allowed:
+ - New fields inside DVSMLoadTensor (if still invariant-projected)
+ - New recovery classifications (if derived from divergence math)
+ - New seal metadata (if cryptographically bound)
+ - New lifecycle states (if non-Byzantine affecting)
+
+ ✖ Forbidden:
+ - Direct hardware assumptions (e.g., "GPU optimized node")
+ - External timing sources in consensus logic
+ - Non-deterministic branching in pulse()
+ - Any state not derivable from snapshot + round + tensor
+*/
+
+// =====================================================
+// MARK: - 4. SAFE MODIFICATION ZONES (IMPORTANT)
+// =====================================================
+
+/*
+ These are the ONLY safe mutation points:
+
+ [ZONE A] DVSMLoadTensor.project(...)
+ → Safe to adjust normalization curves
+
+ [ZONE B] DVSMReconciliationField.projectDivergence(...)
+ → Safe to refine geometric distance model
+
+ [ZONE C] DVSMRecoveryMode thresholds
+ → Safe to tune epsilon boundaries
+
+ [ZONE D] DVSMKernel.pulse()
+ → ONLY safe for sequencing logic, NOT semantics
+*/
+
+// =====================================================
+// MARK: - 5. CODE CHANGE GUIDE (ATTACHED TO YOUR STACK)
+// =====================================================
+
+/*
+ 🔧 CHANGE OPTION 1 — Improve Load Tensor Fidelity
+
+ REPLACE:
+ FixedPoint(tanh(normalized))
+
+ WITH:
+ FixedPoint(sin(normalized * .pi / 2))
+
+ EFFECT:
+ - Less aggressive saturation
+ - Better sensitivity in mid-load regimes
+ - Higher differentiation between medium clusters
+*/
+
+// -----------------------------------------------------
+
+/*
+ 🔧 CHANGE OPTION 2 — Improve Divergence Stability
+
+ REPLACE:
+ let pDelta = abs(...)
+
+ WITH:
+ let pDelta = sqrt(pow(..., 2) + pow(..., 2))
+
+ EFFECT:
+ - Converts L1 → L2 geometry
+ - Improves smoothness of recovery classification
+ - Reduces oscillation in borderline nodes
+*/
+
+// -----------------------------------------------------
+
+/*
+ 🔧 CHANGE OPTION 3 — Strengthen Byzantine Resistance
+
+ ADD inside pulse():
+
+ guard snapshot.seal.merkleRoot.count == 32 else {
+     throw DVSMError.quorumFailure
+ }
+
+ EFFECT:
+ - Hardens seal integrity assumptions
+ - Prevents malformed snapshot injection
+*/
+
+// -----------------------------------------------------
+
+/*
+ 🔧 CHANGE OPTION 4 — Improve Recovery Precision
+
+ MODIFY:
+ epsilon: FixedPoint(0.1)
+
+ TO:
+ epsilon: FixedPoint(log(1 + clusterSize))
+
+ EFFECT:
+ - Adaptive recovery sensitivity
+ - Scales trust thresholds with network size
+*/
+
+// =====================================================
+// MARK: - 6. SYSTEM INTERPRETATION MODEL
+// =====================================================
+
+/*
+ Think of DVSM as:
+
+     A MANIFOLD WITH FOUR COORDINATE SYSTEMS
+
+ 1. TIME COORDINATE → DVSMRound
+ 2. TRUTH COORDINATE → DVSMTruthHash
+ 3. ENERGY COORDINATE → DVSMLoadTensor
+ 4. MEMORY COORDINATE → DVSMAgeSummary
+
+ All system behavior is a transformation between these frames.
+*/
+
+// =====================================================
+// MARK: - 7. FAILURE MODES (WHAT THIS SYSTEM IS DESIGNED TO SURVIVE)
+// =====================================================
+
+/*
+ DVSM is resilient against:
+
+ - Node loss (handled via AgeSummary)
+ - Network partition (handled via reconciliation field)
+ - Replay attacks (handled via round locking)
+ - Metric distortion (handled via tensor projection)
+
+ DVSM is NOT designed for:
+ - Real-time gaming latency systems
+ - Non-deterministic AI inference pipelines
+ - Human-in-the-loop decision systems
+*/
+
+// =====================================================
+// END GUIDE LAYER
+// =====================================================
