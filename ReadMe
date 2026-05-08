@@ -571,7 +571,7 @@ public struct DVSMCalibrationStability: Sendable {
 */
 
 // =====================================================
-// MARK: - DVSM v17.x ADDENDUM II: THE STOCHASTIC BRIDGE
+// MARK: - DVSM v17.x ADDENDUM II: THE STOCHASTIC BRIDGE (SymFlow)
 // MARK: - File: DVSMStochasticBridgeExtension.swift
 // MARK: - Status: FORMAL SPECIFICATION [Entropy-to-Manifold Mapping]
 // =====================================================
@@ -582,6 +582,17 @@ public struct DVSMCalibrationStability: Sendable {
  This addendum addresses the fundamental tension between **Deterministic Finality** 
  and **Probabilistic Inference**. In the DVSM ecosystem, high-entropy data (such as 
  Large Language Model outputs or sensor noise) poses a risk of "consensus jitter."
+
+ ### SPECTRAL REGULARIZATION: It minimizes a quadratic action functional 
+ S(D) ≈ Tr(I - tD²), preventing eigenvalue explosion
+
+ ### LOW-RANK ALIGNMENT: It incorporates an external forcing term derived 
+ from the outer product of the input flux (v ⊗ v), driving the principal 
+ eigenstructure to align with external signal density.
+
+ ### MANIFOLD PROJECTION: It explicitly enforces the self-adjoint 
+ constraint D = Dᵀ at every step, ensuring the system remains 
+ within the space of valid physical observables.
  
  ### I. THE SEMANTIC TRANSFORM
  The Stochastic Bridge does not attempt to make the non-deterministic deterministic. 
@@ -684,6 +695,9 @@ extension DVSMKernel {
     system into unrecoverable forks.
  2. UNIFIED SEMANTICS: Both hardware telemetry and AI inference now speak 
     the language of the Load Tensor.
+ 3. SAFETY GUARANTEE: The Reconciliation Field remains the final arbiter 
+    of state validity, regardless of the Execution Path.
+
 */
 
 /**
