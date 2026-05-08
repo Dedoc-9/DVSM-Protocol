@@ -449,6 +449,126 @@ public struct DVSMCalibrationStability: Sendable {
     public let driftOfTension: Double
     public let stabilityScore: Double
 }
+/*
+ =====================================================
+ DVSM v∞-G2 ADDENDUM
+ =====================================================
+
+ FILE: DVSMGeometricManifoldKernel.swift
+
+ AUTHOR: Daniel J. Dillberg
+ STATUS: REFERENCE IMPLEMENTATION — GEOMETRIC CORE KERNEL
+
+ -----------------------------------------------------
+ PURPOSE
+ -----------------------------------------------------
+
+ This addendum defines the canonical implementation of the
+ DVSM Geometric Manifold Kernel, which replaces prior
+ heuristic or finite-difference formulations with a
+ fully Riemannian Newton–Krylov solver operating on
+ the unit hypersphere S¹⁵.
+
+ The system solves the implicit nonlinear eigenproblem:
+
+     F(ψ) = g(ψ)ψ − ⟨ψ, g(ψ)ψ⟩ψ = 0
+
+ where:
+   - ψ ∈ S¹⁵ is constrained to the unit manifold
+   - g(ψ) is the dynamically evolving metric tensor
+   - F(ψ) is the Riemannian projected residual
+
+ -----------------------------------------------------
+ ARCHITECTURAL ROLE
+ -----------------------------------------------------
+
+ DVSMGeometricManifoldKernel.swift is the first
+ fully geometric execution layer in the DVSM lineage.
+
+ It replaces:
+   - projected gradient descent (v36.x–v37.x)
+   - finite-difference JFNK approximations (v37.x)
+   - Krylov heuristic subspace estimation (v38.x)
+
+ With:
+
+   ✔ Exact Jacobian-vector structure via analytic projection
+   ✔ True GMRES-style Krylov subspace construction
+   ✔ Riemannian exponential map retraction
+   ✔ Metric-driven nonlinear eigenvalue coupling
+
+ -----------------------------------------------------
+ MATHEMATICAL PRINCIPLES
+ -----------------------------------------------------
+
+ 1. RIEMANNIAN RESIDUAL
+
+    F(ψ) = gψ − λψ
+    where λ = ⟨ψ, gψ⟩
+
+    This enforces stationarity on the Grassmann manifold.
+
+ 2. NEWTON–KRYLOV SOLVE
+
+    The linearized system:
+
+        J(ψ) δψ = −F(ψ)
+
+    is solved without forming J explicitly using
+    Krylov subspace projection:
+
+        span{F, JF, J²F, ...}
+
+ 3. GMRES PROJECTION
+
+    The Arnoldi process constructs an orthonormal basis V,
+    and the Hessenberg system:
+
+        H y ≈ β e₁
+
+    is solved in least-squares form.
+
+ 4. GEODESIC UPDATE
+
+    The state is updated via the exponential map:
+
+        ψ ← Exp_ψ(δψ)
+
+    ensuring motion remains on S¹⁵.
+
+ -----------------------------------------------------
+ DESIGN GUARANTEE
+ -----------------------------------------------------
+
+ ✔ Manifold invariance preserved at all steps
+ ✔ No Euclidean drift or post-normalization hacks
+ ✔ Residual is purely tangent-space projected
+ ✔ Update is second-order (Newton-level convergence)
+ ✔ Krylov subspace respects frozen operator semantics
+
+ -----------------------------------------------------
+ FINAL INTERPRETATION
+ -----------------------------------------------------
+
+ DVSMGeometricManifoldKernel is not a numerical solver
+ in the classical sense.
+
+ It is a geometric fixed-point instrument:
+
+   → It does not "iterate toward a solution"
+   → It resolves the curvature of the solution space itself
+
+ The system terminates when:
+
+     ||F(ψ)|| → 0
+
+ meaning the manifold has reached a stationary eigenstate
+ under its own induced metric.
+
+ -----------------------------------------------------
+ END OF ADDENDUM
+ =====================================================
+*/
 
 /**
  ### PROJECT CLOSURE: OPERATIONAL REFERENCE
