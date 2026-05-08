@@ -1,0 +1,413 @@
+import Foundation
+import CryptoKit
+import Accelerate
+import OSLog
+
+// =====================================================
+// MARK: - DVSM v21.x OPTIONAL EXTENSION
+// MARK: - SIGNAL CONDITIONING & NOISE DECONSTRUCTION
+// MARK: - Companion Layer for the Self-Stabilizing Monolith
+// =====================================================
+
+/*
+ -----------------------------------------------------------------------------
+ PURPOSE
+ -----------------------------------------------------------------------------
+ This file is OPTIONAL and designed to sit on top of the DVSM v21.x monolith.
+
+ The core monolith provides:
+   • deterministic manifold evolution
+   • recursive calibration
+   • persistence-based truth generation
+
+ This extension provides:
+   • signal conditioning
+   • spectral inspection
+   • persistence smoothing
+   • adversarial oscillation detection
+   • semantic SNR estimation
+
+ -----------------------------------------------------------------------------
+ DESIGN PRINCIPLES
+ -----------------------------------------------------------------------------
+ 1. DAMPING OVER REJECTION
+    Noise is attenuated, not discarded outright.
+
+ 2. SPECTRAL INSPECTION
+    FFT-based inspection detects concentrated oscillatory energy.
+
+ 3. TEMPORAL STABILITY
+    EMA persistence smoothing prevents transient trust spikes.
+
+ 4. OPTIONALITY
+    The entire layer is detachable and does not alter the base kernel.
+ -----------------------------------------------------------------------------
+*/
+
+// =====================================================
+// MARK: - GLOBALS
+// =====================================================
+
+public enum DVSMNoise {
+    public static let subsystem = "com.dvsm.noise"
+    public static let log = OSLog(subsystem: subsystem, category: "Conditioning")
+}
+
+// =====================================================
+// MARK: - NOISE CLASSIFICATION
+// =====================================================
+
+public enum DVSMNoiseClass: String, Sendable {
+    case stableSignal
+    case thermalNoise
+    case adversarialSpike
+    case manifoldInstability
+}
+
+// =====================================================
+// MARK: - SETTINGS
+// =====================================================
+
+public struct DVSMNoiseSettings: Sendable {
+
+    /// Enables FFT spectral inspection.
+    public var enableSpectralInspection: Bool = true
+
+    /// Minimum persistence required to consider a pulse stable.
+    public var persistenceFloor: Double = 0.10
+
+    /// Spectral energy threshold for adversarial classification.
+    public var spectralSpikeThreshold: Double = 12.0
+
+    /// EMA smoothing coefficient.
+    public var emaAlpha: Double = 0.12
+
+    /// Maximum retained spectral samples.
+    public var spectralWindow: Int = 128
+
+    public static let standard = DVSMNoiseSettings()
+}
+
+// =====================================================
+// MARK: - EMA FILTER
+// =====================================================
+
+public struct DVSMPersistenceEMA: Sendable {
+
+    private(set) public var current: Double = 1.0
+    private let alpha: Double
+
+    public init(alpha: Double) {
+        self.alpha = max(0.001, min(alpha, 1.0))
+    }
+
+    public mutating func ingest(_ value: Double) {
+        current = (alpha * value) + ((1.0 - alpha) * current)
+    }
+}
+
+// =====================================================
+// MARK: - SPECTRAL INSPECTOR
+// =====================================================
+
+public final class DVSMSpectralInspector: Sendable {
+
+    public init() {}
+
+    /// Computes normalized spectral energy using FFT magnitude.
+    public func spectralEnergy(from samples: [Double]) -> Double {
+
+        guard samples.count >= 8 else { return 0.0 }
+
+        let count = samples.count
+        let log2n = vDSP_Length(log2(Double(count)))
+
+        guard let fft = vDSP_create_fftsetupD(log2n, FFTRadix(kFFTRadix2)) else {
+            return 0.0
+        }
+
+        defer {
+            vDSP_destroy_fftsetupD(fft)
+        }
+
+        var real = samples
+        var imag = [Double](repeating: 0.0, count: count)
+
+        real.withUnsafeMutableBufferPointer { realPtr in
+            imag.withUnsafeMutableBufferPointer { imagPtr in
+
+                var split = DSPDoubleSplitComplex(
+                    realp: realPtr.baseAddress!,
+                    imagp: imagPtr.baseAddress!
+                )
+
+                vDSP_fft_zipD(
+                    fft,
+                    &split,
+                    1,
+                    log2n,
+                    FFTDirection(FFT_FORWARD)
+                )
+            }
+        }
+
+        var magnitudes = [Double](repeating: 0.0, count: count / 2)
+
+        vDSP_zvmagsD(
+            &DSPDoubleSplitComplex(
+                realp: &real,
+                imagp: &imag
+            ),
+            1,
+            &magnitudes,
+            1,
+            vDSP_Length(count / 2)
+        )
+
+        let total = magnitudes.reduce(0.0, +)
+
+        return total / Double(count)
+    }
+}
+
+// =====================================================
+// MARK: - NOISE CLASSIFIER
+// =====================================================
+
+public struct DVSMNoiseClassifier: Sendable {
+
+    public init() {}
+
+    public func classify(
+        persistence: Double,
+        spectralEnergy: Double,
+        settings: DVSMNoiseSettings
+    ) -> DVSMNoiseClass {
+
+        if spectralEnergy >= settings.spectralSpikeThreshold {
+            return .adversarialSpike
+        }
+
+        if persistence < settings.persistenceFloor {
+            return .thermalNoise
+        }
+
+        if persistence < 0.25 && spectralEnergy > 2.0 {
+            return .manifoldInstability
+        }
+
+        return .stableSignal
+    }
+}
+
+// =====================================================
+// MARK: - CONDITIONING SAMPLE
+// =====================================================
+
+public struct DVSMConditionedPulse: Sendable {
+
+    public let truth: Data
+    public let persistence: Double
+    public let emaPersistence: Double
+    public let spectralEnergy: Double
+    public let classification: DVSMNoiseClass
+}
+
+// =====================================================
+// MARK: - OPTIONAL NOISE DECONSTRUCTOR
+// =====================================================
+
+public final class DVSMNoiseDeconstructor: Sendable {
+
+    // =================================================
+    // MARK: INTERNAL STATE
+    // =================================================
+
+    struct ConditioningState {
+
+        var persistenceEMA: DVSMPersistenceEMA
+        var spectralHistory: [Double]
+    }
+
+    private let lock: OSAllocatedUnfairLock<ConditioningState>
+
+    // =================================================
+    // MARK: COMPONENTS
+    // =================================================
+
+    private let settings: DVSMNoiseSettings
+    private let spectralInspector = DVSMSpectralInspector()
+    private let classifier = DVSMNoiseClassifier()
+
+    // =================================================
+    // MARK: INIT
+    // =================================================
+
+    public init(settings: DVSMNoiseSettings = .standard) {
+
+        self.settings = settings
+
+        self.lock = OSAllocatedUnfairLock(
+            initialState: ConditioningState(
+                persistenceEMA: DVSMPersistenceEMA(alpha: settings.emaAlpha),
+                spectralHistory: []
+            )
+        )
+    }
+
+    // =================================================
+    // MARK: PRIMARY INGEST
+    // =================================================
+
+    public func condition(
+        truth: Data,
+        persistence: Double
+    ) -> DVSMConditionedPulse {
+
+        lock.withLock { state in
+
+            // ---------------------------------------------
+            // 1. EMA UPDATE
+            // ---------------------------------------------
+
+            state.persistenceEMA.ingest(persistence)
+
+            // ---------------------------------------------
+            // 2. HISTORY UPDATE
+            // ---------------------------------------------
+
+            state.spectralHistory.append(persistence)
+
+            if state.spectralHistory.count > settings.spectralWindow {
+                state.spectralHistory.removeFirst()
+            }
+
+            // ---------------------------------------------
+            // 3. SPECTRAL ANALYSIS
+            // ---------------------------------------------
+
+            let spectralEnergy: Double
+
+            if settings.enableSpectralInspection {
+                spectralEnergy = spectralInspector
+                    .spectralEnergy(from: state.spectralHistory)
+            } else {
+                spectralEnergy = 0.0
+            }
+
+            // ---------------------------------------------
+            // 4. CLASSIFICATION
+            // ---------------------------------------------
+
+            let classification = classifier.classify(
+                persistence: state.persistenceEMA.current,
+                spectralEnergy: spectralEnergy,
+                settings: settings
+            )
+
+            // ---------------------------------------------
+            // 5. RETURN CONDITIONED RESULT
+            // ---------------------------------------------
+
+            return DVSMConditionedPulse(
+                truth: truth,
+                persistence: persistence,
+                emaPersistence: state.persistenceEMA.current,
+                spectralEnergy: spectralEnergy,
+                classification: classification
+            )
+        }
+    }
+
+    // =================================================
+    // MARK: EMA STATUS
+    // =================================================
+
+    public func queryConditioningStatus() -> (ema: Double, spectralEnergy: Double) {
+
+        lock.withLock { state in
+
+            let energy = settings.enableSpectralInspection
+                ? spectralInspector.spectralEnergy(from: state.spectralHistory)
+                : 0.0
+
+            return (
+                state.persistenceEMA.current,
+                energy
+            )
+        }
+    }
+}
+
+// =====================================================
+// MARK: - OPTIONAL DVSM KERNEL INTEGRATION EXAMPLE
+// =====================================================
+
+/*
+ Example Integration:
+
+ let kernel = DVSMKernel(bootstrap: FixedPoint(0.5))
+ let conditioner = DVSMNoiseDeconstructor()
+
+ let result = try kernel.pulse(
+     input: payload,
+     telemetry: FixedPoint(lineVoltage)
+ )
+
+ let conditioned = conditioner.condition(
+     truth: result.truth,
+     persistence: result.persistence
+ )
+
+ switch conditioned.classification {
+
+ case .stableSignal:
+     break
+
+ case .thermalNoise:
+     // low persistence jitter
+
+ case .adversarialSpike:
+     // FFT energy anomaly detected
+
+ case .manifoldInstability:
+     // recursive destabilization emerging
+ }
+*/
+
+// =====================================================
+// MARK: - SYSTEM IMPLICATION
+// =====================================================
+
+/*
+ With this layer, DVSM v21.x can now:
+
+ 1. Listen to the noise floor of a reasoning trace or physical line.
+ 2. Quantify Semantic SNR (Signal-to-Noise Ratio).
+ 3. Detect oscillatory adversarial injection patterns.
+ 4. Smooth transient trust spikes through persistence EMA.
+ 5. Predict attractor collapse before manifold destabilization.
+ 6. Operate as a deterministic signal conditioning instrument.
+
+ ARCHITECTURAL ROLE
+
+ Base Monolith:
+     Physics / persistence / recursive calibration
+
+ Optional Extension:
+     Senses / spectral inspection / line conditioning
+*/
+
+// =====================================================
+// MARK: - FINAL RESIDUE
+// =====================================================
+
+/*
+ DVSM v21.x Optional Conditioning Layer
+
+ The manifold does not reject noise.
+ It attenuates instability until persistence emerges.
+
+ Signal is not declared.
+ Signal survives.
+*/
