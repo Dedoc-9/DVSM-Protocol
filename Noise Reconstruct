@@ -1,3 +1,53 @@
+// =====================================================
+// MARK: - AUTHORSHIP & PROVENANCE
+// =====================================================
+/*
+  DVSM v21.x — NOISE DECONSTRUCTION EXTENSION
+  
+  Primary Author: Daniel J. Dillberg
+  Status: Operational Reference Standard [Hardened]
+  Copyright © 2024. All Rights Reserved.
+  
+  RECURSIVE IDENTIFIER: [DVSM-SIGNAL-v21-B]
+  
+  "This extension provides the sensory apparatus for the
+   self-stabilizing monolith. It transforms the kernel
+   from a passive manifold into an active listener,
+   capable of deconstructing the spectral signature of
+   adversity in real-time."
+*/
+
+import Foundation
+import CryptoKit
+import Accelerate
+import OSLog
+
+// =====================================================
+// MARK: - DVSM v21.x OPTIONAL EXTENSION
+// MARK: - SIGNAL CONDITIONING & NOISE DECONSTRUCTION
+// MARK: - Companion Layer for the Self-Stabilizing Monolith
+// =====================================================
+
+/*
+ -----------------------------------------------------------------------------
+ PURPOSE
+ -----------------------------------------------------------------------------
+ This file is OPTIONAL and designed to sit on top of the DVSM v21.x monolith.
+
+ The core monolith provides:
+   • deterministic manifold evolution
+   • recursive calibration
+   • persistence-based truth generation
+
+ This extension provides:
+   • signal conditioning
+   • spectral inspection
+   • persistence smoothing
+   • adversarial oscillation detection
+   • semantic SNR estimation
+...
+
+
 import Foundation
 import CryptoKit
 import Accelerate
